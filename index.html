@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>CGO & Multi-platform Compilation</title>
+		<meta name="author" content="Nick Ma">
+
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		<link rel="stylesheet" href="dist/theme/sky.css" id="theme">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+
+		<!-- Override CSS -->
+		<link rel="stylesheet" href="css/reveal-override.css"/>
+
+		<!-- Disable capital letter in the headlines -->
+		<style>
+			.reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5 {
+				text-transform: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section data-transition="concave">
+					<h3>CGO & Multi-platform Compilation</h3>
+					<p>
+						<small>Created by <a href="https://avatarin.com">Nick Ma &lt;nick@avatarin.com&gt;</a></small><br>
+						<small>Date: 10/25/2023</small>
+					</p>
+				</section>
+				<!--<section data-transition="concave">
+					<h3>Who Am I</h3>
+					<div style="width: 100%;">
+						<img src="images/avatarin_logo_ANAgroup_normal.png" alt="company logo"/><br/>
+						<p>Director of Cloud Infrastructure</p><br/>
+						<small>Data-center-scale Cloud Infrastructure and Software Defined Networking</small><br/>
+						<small>Ultra-low Latency Real-Time Communication for Robots</small><br/>
+						<small>Open Source Evangelist & Community Manager</small>
+					</div>
+				</section>
+				<section data-transition="concave">
+					<h3>Technology Stack</h3>
+					<div style="width: 100%;">
+						<div style="width: 33.33%; height: 100px; float: left;">
+							<img src="images/golang.png" alt="golang logo"/><br/><small>Golang</small>
+						</div>
+						<div style="width: 33.33%; height: 100px; float: left;">
+							<img src="images/kubernetes.png" alt="k8s logo"/><br/><small>Kubernetes</small>
+						</div>
+						<div style="width: 33.33%; height: 100px; float: left;">
+							<img src="images/terraform.svg" alt="terraform logo"/><br/><small>Terraform</small>
+						</div>
+					</div>
+				</section>-->
+				<section data-transition="concave">
+					<h3>Cgo: Introduction</h3>
+					<p>A bridge between Go and anything else (which has C bindings)</p>
+					<p>It enables a Go program to call C functions.</p>
+					<p>It enables a C program to call "Go" functions.</p>
+					<p>It brings Gcc/Clang ecosystem and extends the cross-compilation capabilities.</p>
+				</section>
+				<section>
+					<section data-transition="concave">
+						<h3>Cgo: Basic Example (1)</h3>
+						<pre><code data-trim data-noescape>
+							package main
+							// #cgo CFLAGS: -g
+							// #include "stdlib.h"
+							// int add(int a, int b) {
+							//    return a + b;
+							// }
+							import "C" // The virtual namespace containing C functions
+							import "fmt"
+							func main() {
+								C.srandom(C.uint(100))
+								a := C.int(C.random())
+								b := C.int(C.random())
+								fmt.Println("%v + %v = %v", a, b, C.add(a, b))
+							}
+						</code></pre>
+					</section>
+					<section data-transition="concave">
+						<h3>Cgo: Basic Example (2)</h3>
+						<p>Start with a new .go source file</p>
+						<p>Embed the C codes you want to interface as comment prior to the import</p>
+						<p>Optional: #cgo preprocessor instructions to set C compiler and linker flags</p>
+					</section>
+				</section>
+				<section data-transition="concave">
+					<h3>Cgo: Mapping the C namespace to Go</h3>
+					<p>Everything declared in C codes is available in the C namespace</p>
+				</section>
+				<section data-transition="concave">
+					<h3>Cgo: Fundamental C data types</h3>
+					<table>
+						<thead><tr>
+							<th>C data types</th>
+							<th>Cgo</th>
+							<th>Golang</th>
+						</tr></thead>
+						<tbody>
+						<tr>
+							<td>int</td>
+							<td>C.int</td>
+							<td>int32</td>
+						</tr>
+						<tr>
+							<td>double</td>
+							<td>C.double</td>
+							<td>float64</td>
+						</tr>
+						<tr>
+							<td>uint64_t</td>
+							<td>C.uint64_t</td>
+							<td>uint64</td>
+						</tr>
+						<tr>
+							<td>char</td>
+							<td>C.char</td>
+							<td>byte</td>
+						</tr>
+						<tr>
+							<td>unsigned char</td>
+							<td>C.uchar</td>
+							<td>uint8</td>
+						</tr>
+						</tbody>
+					</table>
+				</section>
+				<section data-transition="concave">
+					<h3>Conversion between C and Go strings</h3>
+					<pre><code data-trim data-noescape>
+						// Go string to C string; result must be freed with C.free
+						func C.CString(string) *C.char
+
+						// C string to Go string
+						func C.GoString(*C.char) string
+
+						// C string, length to Go string
+						func C.GoStringN(*C.char, C.int) string
+
+						// C pointer, length to Go []byte
+						func C.GoBytes(unsafe.Pointer, C.int) []byte
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Structures, Unions and Enums</h3>
+					<pre><code data-trim data-noescape>
+						//struct A {
+						//	int i;
+						//	float f;
+						//};
+						import "C"
+						import "fmt"
+
+						func main() {
+							// In order to access the C's "struct" from Go,
+							// Use "C.struct_" as the prefix.
+							var a C.struct_A
+							fmt.Println(a.i)
+							fmt.Println(a.f)
+						}
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>String Operations and Typedefs</h3>
+					<pre><code data-trim data-noescape>
+						//typedef struct A {
+						//	char name[32];
+						//} StructA
+						//#include "stdlib.h"
+						//#include "stringlh"
+						import "C"
+						func main() {
+							name = "abcd"
+							objA := C.StructA{}
+							cName = C.CString(name)
+							defer C.free(unsafe.Pointer(cName))
+							C.memcpy(unsafe.Pointer(&objA.name), unsafe.Pointer(cName),
+								C.size_t(len(name)))
+						}
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Cgo: C++ Support</h3>
+					<p>Build a C interface wrapper for C++ class</p>
+					<p>Link the C++ library file and add "-lstdc++"</p>
+					<pre><code data-trim data-noescape>
+						// my_buffer_capi.h
+						typedef struct MyBuffer_T MyBuffer_T;
+
+						MyBuffer_T* NewMyBuffer(int size);
+						void DeleteMyBuffer(MyBuffer_T* p);
+
+						char* MyBuffer_Data(MyBuffer_T* p);
+						int MyBuffer_Size(MyBuffer_T* p);
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Cgo: Call C Functions From Cgo</h3>
+					<pre><code data-trim data-noescape>
+						//static int add(int a, int b) {
+						//	return a+b;
+						//}
+						import "C"
+						import "fmt"
+
+						func main() {
+							v := C.add(10, 5)
+    						fmt.Println(v)
+						}
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Cgo: Link with external libraries</h3>
+					<p>Given that you have a C library called "number"</p>
+					<pre><code data-trim data-noescape>
+						package main
+						//#cgo CFLAGS: -I./
+						//#cgo LDFLAGS: -L./ -lnumber
+						//
+						//#include "number.h"
+						import "C"
+						import "fmt"
+
+						func main() {
+							fmt.Println(C.number_add(10, 5))
+						}
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Cgo: Call Cgo Functions from C/C++</h3>
+					<pre><code data-trim data-noescape>
+						import "C"
+
+						//export number_add
+						func number_add(a, b C.int) C.int {
+							return a+b
+						}
+					</code></pre>
+					<p>The function's parameters and return values are C-friendly types</p>
+					<p>The return value must not directly or indirectly contain a pointer to the Go memory space.</p>
+				</section>
+				<section>
+					<section data-transition="concave">
+						<h3>Cgo: Compilation Commands (1)</h3>
+						<p>Pre-build standard library</p>
+						<pre><code data-trim data-noescape>
+							{Env} go install std
+						</code></pre>
+					</section>
+					<section data-transition="concave">
+						<h3>Cgo: Compilation Commands (2)</h3>
+						<p>Build executable file</p>
+						<pre><code data-trim data-noescape>
+							{Env} go build -buildvcs=false ./
+						</code></pre>
+					</section>
+					<section data-transition="concave">
+						<h3>Cgo: Compilation Commands (3)</h3>
+						<p>Build shared library</p>
+						<pre><code data-trim data-noescape>
+							{Env} go build -buildvcs=false -buildmode=c-shared ./
+						</code></pre>
+					</section>
+					<section data-transition="concave">
+						<h3>Cgo: Compilation Commands (4)</h3>
+						<p>Build static library</p>
+						<pre><code data-trim data-noescape>
+							{Env} go build -buildvcs=false -buildmode=c-archive ./
+						</code></pre>
+					</section>
+				</section>
+				<section>
+					<section data-transition="concave">
+						<h3>Build Machine Setup</h3>
+						<p>Ubuntu x86-64: Linux, Windows & Android</p>
+						<p>MacOS x86-64 or ARM64(M1/M2): MacOS, iOS & Simulator</p>
+					</section>
+					<section data-transition="concave">
+						<h3>Build Machine Setup (Ubuntu)</h3>
+						<p>Dependencies: golang-1.20, mingw-w64, llvm-8, gcc-6, openjdk-8, python3.6, android-ndk-22</p>
+					</section>
+					<section data-transition="concave">
+						<h3>Build Machine Setup (MacOS)</h3>
+						<p>Dependencies: golang-1.20, xcode-14</p>
+						<img src="images/xcode.png" alt="xcode"/>
+					</section>
+				</section>
+				<section data-transition="concave">
+					<h3>Target Platform: x86-64 Linux</h3>
+					<pre><code data-trim data-noescape>
+						GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go ...
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Target Platform: ARM64 Linux</h3>
+					<pre><code data-trim data-noescape>
+						CC=aarch64-linux-gnu-gcc-6 GOOS=linux GOARCH=arm64 CGO_ENABLED=1 go ...
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Target Platform: x86-64 Windows</h3>
+					<pre><code data-trim data-noescape>
+						CGO_CFLAGS="-D_WIN32_WINNT=0x0601" CC=x86_64-w64-mingw32-gcc-posix \
+						GOOS=windows GOARCH=amd64 CGO_ENABLED=1 go ...
+					</code></pre>
+					<p>
+						<a href="https://learn.microsoft.com/en-us/cpp/porting/modifying-winver-and-win32-winnt?view=msvc-170">_WIN32_WINNT Definitions</a>
+					</p>
+				</section>
+				<section data-transition="concave">
+					<h3>Target Platform: ARM64 Android</h3>
+					<pre><code data-trim data-noescape>
+						CC=aarch64-linux-android22-clang \
+						GOOS=android GOARCH=arm64 CGO_ENABLED=1 \
+						go build -buildvcs=false -buildmode=c-shared \
+							--ldflags="-extldflags=-Wl,-soname,libXXX.so" ./
+					</code></pre>
+				</section>
+				<section data-transition="concave">
+					<h3>Target Platform: Apple M1/M2</h3>
+					<pre><code data-trim data-noescape>
+						GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go ...
+						// If you build executable files on Apple M1/M2:
+						sudo xattr -r -d com.apple.quarantine ${executable-file}
+						codesign -s - ${executable-file}
+					</code></pre>
+				</section>
+				<section>
+					<section data-transition="concave">
+						<h3>Target Platform: Apple iOS/Simulator (1)</h3>
+						<pre><code data-trim data-noescape>
+							### clangwrap.sh
+							#!/bin/sh
+							SDK_PATH=`xcrun --sdk $SDK --show-sdk-path`
+							CLANG=`xcrun --sdk $SDK --find clang`
+							if [ "$GOARCH" == "amd64" ]; then
+								CARCH="x86_64"
+								MINVER="-miphonesimulator-version-min=9.0"
+							elif [ "$GOARCH" == "arm64" ]; then
+								CARCH="arm64"
+								MINVER="-mios-version-min=7.0"
+							fi
+							exec $CLANG -arch $CARCH -isysroot $SDK_PATH $MINVER "$@"
+						</code></pre>
+					</section>
+					<section data-transition="concave">
+						<h3>Target Platform: Apple iOS/Simulator (2)</h3>
+						<pre><code data-trim data-noescape>
+							GOOS=ios GOARCH=arm64 CGO_ENABLED=1 \
+							SDK=iphoneos CC=$(PWD)/clangwrap.sh \
+							CC=$(PWD)/clangwrap.sh \
+							go build -buildmode=c-archive -trimpath -tags ios ./
+							
+							### produce TOC file: "__.SYMDEF"
+							/usr/bin/libtool -static -a ${lib-file} -o ${lib-file}
+						</code></pre>
+					</section>
+					<section data-transition="concave">
+						<h3>Target Platform: Apple iOS/Simulator (3)</h3>
+						<pre><code data-trim data-noescape>
+							GOOS=ios GOARCH=amd64 CGO_ENABLED=1 \
+							SDK=iphonesimulator CC=$(PWD)/clangwrap.sh \
+							CC=$(PWD)/clangwrap.sh \
+							go build -buildmode=c-archive -trimpath -tags ios ./
+						</code></pre>
+					</section>
+					<section data-transition="concave">
+						<h3>Target Platform: Apple iOS/Simulator (4)</h3>
+						<pre><code data-trim data-noescape>
+							xcodebuild -create-xcframework \
+								-library ... \
+								-headers ... \
+								-output libXXX.xcframework
+						</code></pre>
+					</section>
+				</section>
+				<section data-transition="concave">
+					<h3>When to Use Cgo</h3>
+					<p>There is no Go equivalent of a library you need and can’t re-write in Go.</p>
+					<p>You have legacy business logic in C which is hard to replace.</p>
+					<p>You need to build it as a proprietary library or SDK.</p>
+					<p>You need to integrate it with mobile platforms.</p>
+				</section>
+				<section>
+					<section data-transition="concave">
+						<h3>The cost and complexity of Cgo (1)</h3>
+						<p>Slow Build Time</p>
+						<p>Manual-ish Memory Management</p>
+						<p>Debugging & Profiling</p><br/>
+						<small>pprof doesn't work with Cgo.</small>
+					</section>
+					<section data-transition="concave">
+						<h3>The cost and complexity of Cgo (2)</h3>
+						<p>Concurrency, GC & Performance</p><br/>
+						<small>A blocking cgo call occupies a system thread.</small><br/>
+						<small>Go GC must see all the Go pointers.</small><br/>
+						<small>The overhead of calling from Go into C has a high overhead (171ns/op).</small><br/>
+						<small>The overhead is even worse from C to Go (1-2ms/op).</small>
+					</section>
+				</section>
+				<section data-transition="concave">
+					<h3>Summary</h3>
+					<div style="width: 100%;">
+						<div style="width: 60%; height: 200px; float: left;">
+							<p>Cgo is an FFI of Golang and is the bridge to the C world.</p>
+							<p>Cgo is an example of 1% of the effort giving 90% of the benefit.</p>
+						</div>
+						<div style="width: 40%; height: 300px; float: left;">
+							<img src="images/golang-climb.png" alt="golang logo 2"/>
+						</div>
+					</div>
+				</section>
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script>
+			// More info about initialization & config:
+			// - https://revealjs.com/initialization/
+			// - https://revealjs.com/config/
+			Reveal.initialize({
+				// The "normal" size of the presentation, aspect ratio will
+				// be preserved when the presentation is scaled to fit different
+				// resolutions. Can be specified using percentage units.
+				width: 1024,
+				height: 768,
+
+				// Factor of the display size that should remain empty around
+				// the content
+				margin: 0.04,
+
+				// Bounds for smallest/largest possible scale to apply to content
+				minScale: 0.2,
+				maxScale: 4.0,
+
+				hash: true,
+				slideNumber: 'c/t',
+				controlsLayout: 'edges',
+				controls: true,
+				progress: true,
+				center: true,
+
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+			});
+		</script>
+
+		<!-- Hidden header/footer <div> -->
+		<div id="hidden" style="display:none;">
+			<div id="header">
+				<div id="header-left"></div>
+				<div id="header-right">
+					<img src="images/avatarin_logo_ANAgroup_normal.png" alt="avatarin logo"/>
+				</div>
+				<div id="footer-left"></div>
+			</div>
+		</div>
+
+		<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+		<script type="text/javascript">
+			// On Reveal.js ready event, copy header/footer <div> into each `.slide-background` <div>
+			var header = $('#header').html();
+			if ( window.location.search.match( /print-pdf/gi ) ) {
+				Reveal.addEventListener( 'ready', function( event ) {
+					$('.slide-background').append(header);
+				});
+			}
+			else {
+				$('div.reveal').append(header);
+			}
+		</script>
+	</body>
+</html>
