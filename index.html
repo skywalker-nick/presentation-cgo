@@ -35,34 +35,10 @@
 				<section data-transition="concave">
 					<h3>CGO & Multi-platform Compilation</h3>
 					<p>
-						<small>Created by <a href="https://avatarin.com">Nick Ma &lt;nick@avatarin.com&gt;</a></small><br>
+						<small>Nick Ma &lt;skywalker.nick@gmail.com&gt;</a></small><br>
 						<small>Date: 10/25/2023</small>
 					</p>
 				</section>
-				<!--<section data-transition="concave">
-					<h3>Who Am I</h3>
-					<div style="width: 100%;">
-						<img src="images/avatarin_logo_ANAgroup_normal.png" alt="company logo"/><br/>
-						<p>Director of Cloud Infrastructure</p><br/>
-						<small>Data-center-scale Cloud Infrastructure and Software Defined Networking</small><br/>
-						<small>Ultra-low Latency Real-Time Communication for Robots</small><br/>
-						<small>Open Source Evangelist & Community Manager</small>
-					</div>
-				</section>
-				<section data-transition="concave">
-					<h3>Technology Stack</h3>
-					<div style="width: 100%;">
-						<div style="width: 33.33%; height: 100px; float: left;">
-							<img src="images/golang.png" alt="golang logo"/><br/><small>Golang</small>
-						</div>
-						<div style="width: 33.33%; height: 100px; float: left;">
-							<img src="images/kubernetes.png" alt="k8s logo"/><br/><small>Kubernetes</small>
-						</div>
-						<div style="width: 33.33%; height: 100px; float: left;">
-							<img src="images/terraform.svg" alt="terraform logo"/><br/><small>Terraform</small>
-						</div>
-					</div>
-				</section>-->
 				<section data-transition="concave">
 					<h3>Cgo: Introduction</h3>
 					<p>A bridge between Go and anything else (which has C bindings)</p>
@@ -183,9 +159,9 @@
 						//#include "stringlh"
 						import "C"
 						func main() {
-							name = "abcd"
+							name := "abcd"
 							objA := C.StructA{}
-							cName = C.CString(name)
+							cName := C.CString(name)
 							defer C.free(unsafe.Pointer(cName))
 							C.memcpy(unsafe.Pointer(&objA.name), unsafe.Pointer(cName),
 								C.size_t(len(name)))
@@ -218,7 +194,7 @@
 
 						func main() {
 							v := C.add(10, 5)
-    						fmt.Println(v)
+							fmt.Println(v)
 						}
 					</code></pre>
 				</section>
@@ -361,7 +337,6 @@
 						<pre><code data-trim data-noescape>
 							GOOS=ios GOARCH=arm64 CGO_ENABLED=1 \
 							SDK=iphoneos CC=$(PWD)/clangwrap.sh \
-							CC=$(PWD)/clangwrap.sh \
 							go build -buildmode=c-archive -trimpath -tags ios ./
 							
 							### produce TOC file: "__.SYMDEF"
@@ -373,7 +348,6 @@
 						<pre><code data-trim data-noescape>
 							GOOS=ios GOARCH=amd64 CGO_ENABLED=1 \
 							SDK=iphonesimulator CC=$(PWD)/clangwrap.sh \
-							CC=$(PWD)/clangwrap.sh \
 							go build -buildmode=c-archive -trimpath -tags ios ./
 						</code></pre>
 					</section>
@@ -460,17 +434,6 @@
 				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
 			});
 		</script>
-
-		<!-- Hidden header/footer <div> -->
-		<div id="hidden" style="display:none;">
-			<div id="header">
-				<div id="header-left"></div>
-				<div id="header-right">
-					<img src="images/avatarin_logo_ANAgroup_normal.png" alt="avatarin logo"/>
-				</div>
-				<div id="footer-left"></div>
-			</div>
-		</div>
 
 		<script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
 		<script type="text/javascript">
